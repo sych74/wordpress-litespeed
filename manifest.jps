@@ -8,10 +8,9 @@ categories:
 logo: https://raw.githubusercontent.com/jelastic-jps/wordpress/master/images/wp.png
 homepage: http://wordpress.org/
 description: WordPress is web software you can use to create a beautiful website or blog. We like to say that WordPress is both free and priceless at the same time.
-baseUrl: https://git.jelastic.com/jelastic-jps/wordpress-single-litespeed/raw/master
+baseUrl: https://raw.githubusercontent.com/sych74/wordpress-litespeed/master
 
 globals:
-  KEY: "?private_token=MoHxs-hHAxNJwdi469QG"
   DB_USER: jelastic-${fn.random}
   DB_PASS: ${fn.password(20)}
   ADMIN_PASSWD: ${fn.password(20)}
@@ -80,7 +79,7 @@ onInstall:
         db_user: "${globals.DB_USER}"
         db_pass: "${globals.DB_PASS}"
         scheme: master
-        custom_conf: "https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/configs/mysql/wordpress.cnf"
+        custom_conf: "${baseUrl}/configs/mysql/wordpress.cnf"
       nodeGroup: sqldb
 
   - setupLB
