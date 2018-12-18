@@ -3,18 +3,33 @@ jpsVersion: '1.1'
 id: wordpress
 name: Wordpress Cluster
 categories:
-  - apps/blogs
+  - apps/clustered-dbs
+  - apps/popular
+  - apps/clusters
+  - apps/dev-and-admin-tools
   - apps/content-management
-logo: https://raw.githubusercontent.com/jelastic-jps/wordpress/master/images/wp.png
-homepage: http://wordpress.org/
-description: WordPress is web software you can use to create a beautiful website or blog. We like to say that WordPress is both free and priceless at the same time.
+description: Get your highly available and scalable clustered solution for WordPress,
+  the extremely popular open source CMS and blogging tool. This package is designed
+  to ensure the load tracking and distribution, as well as automatic adjusting the
+  amount of allocated resources according to it.
+logo: https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/images/wp-cluster.png
 baseUrl: https://raw.githubusercontent.com/sych74/wordpress-litespeed/master
 
 globals:
   DB_USER: jelastic-${fn.random}
   DB_PASS: ${fn.password(20)}
   ADMIN_PASSWD: ${fn.password(20)}
-
+  
+settings:
+  fields:
+  - name: wp_title
+    caption: WP Title
+    type: string
+    default: HelloWorld
+    required: 'true'
+    regex: "^[\\w-.]*$"
+    regexText: Incorrect WP Title.
+    
 nodes:
   - nodeType: litespeedphp-dockerized
     tag: 5.3.3-php-7.2.11
@@ -60,8 +75,12 @@ nodes:
    
 
 onAfterScaleOut[nodeGroup:cp]:
-  forEach(event.response.nodes): |-
+  forEach(event.response.nodes):
     setNodeDisplayName [${@i.id}]: AppServer
+
+onAfterScaleOut[nodeGroup:bl]:
+  forEach(event.response.nodes):
+    setNodeDisplayName [${@i.id}]: Load balancer
 
 onInstall:
   - log: Auto Scaling Triggers
