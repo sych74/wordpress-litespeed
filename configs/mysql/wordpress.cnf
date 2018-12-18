@@ -1,2 +1,5 @@
 [mysqld]
 sql_mode = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'
+
+# Duplicate entry '_transient_doing_cron' for key 'option_name', Error_code: 1062;
+slave-skip-errors = 1062
