@@ -98,7 +98,7 @@ actions:
 
   setupLB:
     - cmd[bl]: |-
-        wget ${baseUrl}/configs/nginx/nginx.conf.tpl${globals.KEY} -O /etc/nginx/templates/nginx.conf.tpl &>> /var/log/run.log
+        wget ${baseUrl}/configs/nginx/nginx.conf.tpl -O /etc/nginx/templates/nginx.conf.tpl &>> /var/log/run.log
         rm -f /etc/nginx/nginx-jelastic.conf; jem balancer rebuildCommon
       user: root
 
@@ -126,13 +126,13 @@ actions:
     - cmd[${nodes.cp.master.id}]: |-
         wp plugin install litespeed-cache --path=${SERVER_WEBROOT}
         wp plugin activate litespeed-cache --path=${SERVER_WEBROOT}
-        wget ${baseUrl}/configs/wordpress/LSCWP.cfg${globals.KEY} -O ~/LSCWP.cfg
+        wget ${baseUrl}/configs/wordpress/LSCWP.cfg -O ~/LSCWP.cfg
         wp lscache-admin import_options ~/LSCWP.cfg --path=${SERVER_WEBROOT}
         wp cache flush --path=${SERVER_WEBROOT}
         
   setupCP:
     - cmd[${this.id}]: |-
-        wget ${baseUrl}/configs/litespeed/httpd_config.xml${globals.KEY} -O /var/www/conf/httpd_config.xml
+        wget ${baseUrl}/configs/litespeed/httpd_config.xml -O /var/www/conf/httpd_config.xml
         sed -i "s/root@localhost/${user.email}/g" /var/www/conf/httpd_config.xml
         sudo jem service restart
   
