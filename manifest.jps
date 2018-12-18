@@ -119,8 +119,8 @@ actions:
  
   setupHyperDB:
     cmd[${nodes.cp.master.id}]: |-
-       wget ${baseUrl}/configs/wordpress/db.php${globals.KEY} -O ${SERVER_WEBROOT}/wp-content/db.php &>> /var/log/run.log
-       wget ${baseUrl}/configs/wordpress/db-config.php${globals.KEY} -O ${SERVER_WEBROOT}/db-config.php &>> /var/log/run.log
+       wget ${baseUrl}/configs/wordpress/db.php -O ${SERVER_WEBROOT}/wp-content/db.php &>> /var/log/run.log
+       wget ${baseUrl}/configs/wordpress/db-config.php -O ${SERVER_WEBROOT}/db-config.php &>> /var/log/run.log
  
   setupLSCWP:
     - cmd[${nodes.cp.master.id}]: |-
