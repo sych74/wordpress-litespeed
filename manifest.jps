@@ -32,7 +32,7 @@ settings:
     
 nodes:
   - nodeType: litespeedphp-dockerized
-    tag: 5.3.3-php-7.2.11
+    tag: 5.3.5-php-7.2.11
     count: 2
     cloudlets: 8
     nodeGroup: cp
@@ -151,7 +151,6 @@ actions:
         
   setupCP:
     - cmd[${this.id}]: |-
-        wget ${baseUrl}/configs/litespeed/httpd_config.xml -O /var/www/conf/httpd_config.xml
         sed -i "s/root@localhost/${user.email}/g" /var/www/conf/httpd_config.xml
         sudo jem service restart
   
