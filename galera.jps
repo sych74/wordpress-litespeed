@@ -54,7 +54,7 @@ nodes:
     env:
         JELASTIC_EXPOSE: false
 
-  - nodeType: mariadb
+  - nodeType: mariadb10
     count: 3
     cloudlets: 8
     nodeGroup: sqldb
@@ -129,7 +129,7 @@ actions:
   setupWP:
     cmd[${nodes.cp.master.id}]: |-
         mysql -u${globals.DB_USER} -p${globals.DB_PASS} -h DB -e "CREATE DATABASE IF NOT EXISTS wordpress;"
-        wp core config --dbhost=DB_1 --dbname=wordpress --dbuser=${globals.DB_USER} --dbpass=${globals.DB_PASS} --path=${SERVER_WEBROOT}
+        wp core config --dbhost=DB --dbname=wordpress --dbuser=${globals.DB_USER} --dbpass=${globals.DB_PASS} --path=${SERVER_WEBROOT}
         wp --allow-root core install --title='' --admin_user=admin --admin_password=${globals.ADMIN_PASSWD} --url=${env.domain} --admin_email=${user.email} --path=${SERVER_WEBROOT}
         wget https://raw.githubusercontent.com/jelastic-jps/mysql-cluster/master/configs/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
         sed -i "s/.*'wp-settings.php';.*/require_once ABSPATH . 'wp-jelastic.php';\n&/" ${SERVER_WEBROOT}/wp-config.php
