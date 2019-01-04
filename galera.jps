@@ -109,7 +109,6 @@ onInstall:
   - deployWP
   - installWP-CLI
   - setupWP
-  - setupHyperDB
   - setupLSCWP
   
 actions:
@@ -134,12 +133,7 @@ actions:
         wp --allow-root core install --title='' --admin_user=admin --admin_password=${globals.ADMIN_PASSWD} --url=${env.domain} --admin_email=${user.email} --path=${SERVER_WEBROOT}
         wget https://raw.githubusercontent.com/jelastic-jps/mysql-cluster/master/configs/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
         sed -i "s/.*'wp-settings.php';.*/require_once ABSPATH . 'wp-jelastic.php';\n&/" ${SERVER_WEBROOT}/wp-config.php
- 
-  setupHyperDB:
-    cmd[${nodes.cp.master.id}]: |-
-       wget ${baseUrl}/configs/wordpress/db.php -O ${SERVER_WEBROOT}/wp-content/db.php &>> /var/log/run.log
-       wget ${baseUrl}/configs/wordpress/db-config.php -O ${SERVER_WEBROOT}/db-config.php &>> /var/log/run.log
- 
+  
   setupLSCWP:
     - cmd[${nodes.cp.master.id}]: |-
         wp plugin install litespeed-cache --path=${SERVER_WEBROOT}
