@@ -68,6 +68,7 @@ nodes:
     displayName: Storage
 
   - nodeType: nginx
+    extip: true
     count: 1
     cloudlets: 8
     nodeGroup: bl
