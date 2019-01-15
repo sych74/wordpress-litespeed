@@ -13,7 +13,7 @@ description: Get your highly available and scalable clustered solution for WordP
   to ensure the load tracking and distribution, as well as automatic adjusting the
   amount of allocated resources according to it.
 logo: https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/images/wp-cluster.png
-baseUrl: https://raw.githubusercontent.com/sych74/wordpress-litespeed/master
+baseUrl: https://raw.githubusercontent.com/mo3g89/wordpress-litespeed/master
 
 globals:
   DB_USER: jelastic-${fn.random}
@@ -38,7 +38,9 @@ nodes:
     nodeGroup: cp
     scalingMode: STATEFUL
     displayName: AppServer
-    links: sqldb:DB
+    links: 
+      - sqldb:DB
+      - nosqldb:REDIS
     volumes:
       - "/var/www/webroot/ROOT"
       - "/var/ftp/webroot/ROOT"
@@ -74,6 +76,11 @@ nodes:
     cloudlets: 8
     nodeGroup: bl
     displayName: Load balancer
+    
+  - nodeType: redis
+    count: 1
+    cloudlets: 8
+    nodeGroup: nosqldb
    
 
 onAfterScaleOut[nodeGroup:cp]:
@@ -112,6 +119,7 @@ onInstall:
   - installWP-CLI
   - setupWP
   - setupLSCWP
+  - setupRedis
   
 actions:
 
@@ -144,10 +152,16 @@ actions:
         wp lscache-admin import_options ~/LSCWP.cfg --path=${SERVER_WEBROOT}
         wp cache flush --path=${SERVER_WEBROOT}
         
+  setupRedis:
+    - cmd [nosqldb]: cat /etc/redis.conf| tail -1| awk '{print $2}'
+    - cmd[${nodes.cp.master.id}]: wp lscache-admin set_option cache_object_pswd ${response.responses.out} --path=${SERVER_WEBROOT}
+
+        
   setupCP:
     - cmd[${this.id}]: |-
         sed -i "s/root@localhost/${user.email}/g" /var/www/conf/httpd_config.xml
         sudo jem service restart
+        
   
 success: 'Below you will find your admin panel link, username and password.</br></br>
     <table style=''font-size:13px; border: none;''><tr><td>Admin panel URL:</td><td
