@@ -42,14 +42,14 @@ nodes:
       - sqldb:DB
       - nosqldb:REDIS
     volumes:
-      - "/var/www/webroot/ROOT"
-      - "/var/ftp/webroot/ROOT"
+      - "/var/www/webroot/ROOT/wp-content"
+      - "/var/ftp/webroot/ROOT/wp-content"
     volumeMounts:
-      "/var/www/webroot/ROOT":
+      "/var/www/webroot/ROOT/wp-content":
         readOnly: false
         sourcePath: "/data"
         sourceNodeGroup: storage
-      "/var/ftp/webroot/ROOT":
+      "/var/ftp/webroot/ROOT/wp-content":
         readOnly: false
         sourcePath: "/data"
         sourceNodeGroup: storage
@@ -98,6 +98,8 @@ onInstall:
   - log: Set Node Display Name
   - setNodeDisplayName [bl]: Load balancer
   - setNodeDisplayName [cp]: AppServer
+  - setNodeDisplayName [nosqldb]: ObjectCache
+  - setNodeDisplayName [storage]: Storage
 
   - log: DB Multi-Master Cluster Setup
   - installJps:
@@ -130,8 +132,8 @@ actions:
       user: root
 
   deployWP:
-    - cmd[${nodes.cp.master.id}]: wget -qO- 'https://wordpress.org/latest.tar.gz' | tar xz -C /tmp && mv /tmp/wordpress/* ${SERVER_WEBROOT}
-  
+    - cmd[cp]: wget -qO - ${baseUrl}/shell-scripts/wp-install.sh |bash
+    
   installWP-CLI:
     - cmd[${nodes.cp.master.id}]: curl -fsSL 'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar' -o /usr/local/bin/wp && chmod +x /usr/local/bin/wp
       user: root
