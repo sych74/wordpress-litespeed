@@ -81,7 +81,6 @@ nodes:
     count: 1
     cloudlets: 8
     nodeGroup: nosqldb
-   
 
 onAfterScaleOut[nodeGroup:cp]:
   forEach(event.response.nodes):
@@ -150,14 +149,13 @@ actions:
         sed -i "s/.*'wp-settings.php';.*/require_once ABSPATH . 'wp-jelastic.php';\n&/" ${SERVER_WEBROOT}/wp-config.php
         mv ${SERVER_WEBROOT}/wp-config.php ${SERVER_WEBROOT}/wp-content/wp-config.php
         ln -s ${SERVER_WEBROOT}/wp-content/wp-config.php ${SERVER_WEBROOT}/wp-config.php
-        
 
   setupWpSlave:
      - forEach(nodes.cp):
         if(${@i.id} != ${nodes.cp.master.id}):
           cmd [${@i.id}]: |-
             if [ ! -f ${SERVER_WEBROOT}/wp-config.php ]; then ln -s ${SERVER_WEBROOT}/wp-content/wp-config.php ${SERVER_WEBROOT}/wp-config.php; fi
-            if [ ! -f ${SERVER_WEBROOT}/.htaccess ]; then cp ${SERVER_WEBROOT}/wp-content/.htaccess_default ${SERVER_WEBROOT}/.htaccess; fi
+            if [ ! -f ${SERVER_WEBROOT}/.htaccess ]; then ln -s ${SERVER_WEBROOT}/wp-content/.htaccess_default ${SERVER_WEBROOT}/.htaccess; fi
             wget https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/configs/wordpress/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
             echo "define('DISABLE_WP_CRON', true);" >> ${SERVER_WEBROOT}/wp-jelastic.php
   
@@ -168,11 +166,9 @@ actions:
         wget ${baseUrl}/configs/wordpress/LSCWP.cfg -O ~/LSCWP.cfg
         wp lscache-admin import_options ~/LSCWP.cfg --path=${SERVER_WEBROOT}
         wp cache flush --path=${SERVER_WEBROOT}
-        cp ${SERVER_WEBROOT}/.htaccess ${SERVER_WEBROOT}/wp-content/.htaccess_default
-
-        
-
-        
+        mv ${SERVER_WEBROOT}/.htaccess ${SERVER_WEBROOT}/wp-content/.htaccess_default
+        ln -s ${SERVER_WEBROOT}/wp-content/.htaccess_default ${SERVER_WEBROOT}/.htaccess
+    
   setupRedis:
     - cmd [nosqldb]: cat /etc/redis.conf| tail -1| awk '{print $2}'
     - cmd[${nodes.cp.master.id}]: wp lscache-admin set_option cache_object_pswd ${response.responses.out} --path=${SERVER_WEBROOT}
@@ -183,7 +179,6 @@ actions:
         sed -i "s/root@localhost/${user.email}/g" /var/www/conf/httpd_config.xml
         sudo jem service restart
         
-  
 success: '**Admin Panel**: [${env.url}wp-admin/](${env.url}wp-admin/)
 **Login**: admin
 **Password**: ${globals.ADMIN_PASSWD}
