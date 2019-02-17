@@ -13,7 +13,7 @@ description: Get your highly available and scalable clustered solution for WordP
   to ensure the load tracking and distribution, as well as automatic adjusting the
   amount of allocated resources according to it.
 logo: https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/images/wp-cluster.png
-baseUrl: https://raw.githubusercontent.com/sych74/wordpress-litespeed/master
+baseUrl: https://raw.githubusercontent.com/mo3g89/wordpress-litespeed/master
 
 globals:
   DB_USER: jelastic-${fn.random}
@@ -31,36 +31,27 @@ settings:
     regexText: Incorrect WP Title.
     
 nodes:
-  - nodeType: litespeedphp
-    tag: 5.3.5-php-7.2.11
-    count: 2
-    cloudlets: 8
+  - nodeType: litespeedphp-redis
+    tag: 5.3.5-php-7.3.0
+    count: 3
+    cloudlets: 16
     nodeGroup: cp
     scalingMode: STATEFUL
     displayName: AppServer
-    links: sqldb:DB
     volumes:
-      - "/var/www/webroot/ROOT"
-      - "/var/ftp/webroot/ROOT"
+      - "/var/www/webroot/ROOT/wp-content"
+      - "/var/ftp/webroot/ROOT/wp-content"
     volumeMounts:
-      "/var/www/webroot/ROOT":
+      "/var/www/webroot/ROOT/wp-content":
         readOnly: false
         sourcePath: "/data"
         sourceNodeGroup: storage
-      "/var/ftp/webroot/ROOT":
+      "/var/ftp/webroot/ROOT/wp-content":
         readOnly: false
         sourcePath: "/data"
         sourceNodeGroup: storage
     env:
         JELASTIC_EXPOSE: false
-
-  - nodeType: mysql
-    count: 2
-    cloudlets: 8
-    nodeGroup: sqldb
-    displayName: Database
-    env:
-      ON_ENV_INSTALL: ''
  
   - nodeType: storage
     cloudlets: 8
@@ -68,12 +59,12 @@ nodes:
     displayName: Storage
 
   - nodeType: nginx
-    extip: true
+    extip: false
     count: 1
     cloudlets: 8
     nodeGroup: bl
     displayName: Load balancer
-   
+    
 
 onAfterScaleOut[nodeGroup:cp]:
   forEach(event.response.nodes):
@@ -90,17 +81,17 @@ onInstall:
   - log: Set Node Display Name
   - setNodeDisplayName [bl]: Load balancer
   - setNodeDisplayName [cp]: AppServer
+  - setNodeDisplayName [storage]: Storage
 
   - log: DB Multi-Master Cluster Setup
   - installJps:
-      jps: https://raw.githubusercontent.com/jelastic-jps/mysql-cluster/master/scripts/ms-mm-configuration.jps
+      jps: https://raw.githubusercontent.com/mo3g89/wordpress-litespeed/master/mysql-cluster/master/scripts/galera-configuration.jps
       settings:
         path: "https://raw.githubusercontent.com/jelastic-jps/mysql-cluster/master"
         db_user: "${globals.DB_USER}"
         db_pass: "${globals.DB_PASS}"
-        scheme: master
         custom_conf: "${baseUrl}/configs/mysql/wordpress.cnf"
-      nodeGroup: sqldb
+      nodeGroup: cp
 
   - setupLB
 
@@ -110,56 +101,60 @@ onInstall:
 
   - deployWP
   - installWP-CLI
-  - setupWP
-  - setupHyperDB
+  - setupWpMaster
   - setupLSCWP
+  - setupWpSlave
   
 actions:
 
   setupLB:
     - cmd[bl]: |-
+        sed -i "s/$(cat /etc/nginx/nginx.conf|grep worker_rlimit_nofile)/worker_rlimit_nofile 409060;/" /etc/nginx/nginx.conf
+        sed -i "s/$(cat /etc/nginx/nginx.conf|grep worker_connections)/worker_connections 18192;/" /etc/nginx/nginx.conf
         wget ${baseUrl}/configs/nginx/nginx.conf.tpl -O /etc/nginx/templates/nginx.conf.tpl &>> /var/log/run.log
         rm -f /etc/nginx/nginx-jelastic.conf; jem balancer rebuildCommon
       user: root
 
   deployWP:
-    - cmd[${nodes.cp.master.id}]: wget -qO- 'https://wordpress.org/latest.tar.gz' | tar xz -C /tmp && mv /tmp/wordpress/* ${SERVER_WEBROOT}
-  
+    - cmd[cp]: wget -qO - ${baseUrl}/shell-scripts/wp-install.sh |bash
+    
   installWP-CLI:
-    - cmd[${nodes.cp.master.id}]: curl -fsSL 'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar' -o /usr/local/bin/wp && chmod +x /usr/local/bin/wp
+    - cmd[cp]: curl -fsSL 'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar' -o /usr/local/bin/wp && chmod +x /usr/local/bin/wp
       user: root
 
-  setupWP:
+  setupWpMaster:
     cmd[${nodes.cp.master.id}]: |-
-        mysql -u${globals.DB_USER} -p${globals.DB_PASS} -h DB_1 -e "CREATE DATABASE IF NOT EXISTS wordpress;"
-        wp core config --dbhost=DB_1 --dbname=wordpress --dbuser=${globals.DB_USER} --dbpass=${globals.DB_PASS} --path=${SERVER_WEBROOT}
+        mysql -u${globals.DB_USER} -p${globals.DB_PASS} -h 127.0.0.1 -e "CREATE DATABASE IF NOT EXISTS wordpress;"
+        wp core config --dbhost=127.0.0.1 --dbname=wordpress --dbuser=${globals.DB_USER} --dbpass=${globals.DB_PASS} --path=${SERVER_WEBROOT}
         wp --allow-root core install --title='' --admin_user=admin --admin_password=${globals.ADMIN_PASSWD} --url=${env.domain} --admin_email=${user.email} --path=${SERVER_WEBROOT}
-        wget https://raw.githubusercontent.com/jelastic-jps/mysql-cluster/master/configs/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
+        wget https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/configs/wordpress/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
         sed -i "s/.*'wp-settings.php';.*/require_once ABSPATH . 'wp-jelastic.php';\n&/" ${SERVER_WEBROOT}/wp-config.php
- 
-  setupHyperDB:
-    cmd[${nodes.cp.master.id}]: |-
-       wget ${baseUrl}/configs/wordpress/db.php -O ${SERVER_WEBROOT}/wp-content/db.php &>> /var/log/run.log
-       wget ${baseUrl}/configs/wordpress/db-config.php -O ${SERVER_WEBROOT}/db-config.php &>> /var/log/run.log
- 
+        mv ${SERVER_WEBROOT}/wp-config.php ${SERVER_WEBROOT}/wp-content/wp-config.php
+        ln -s ${SERVER_WEBROOT}/wp-content/wp-config.php ${SERVER_WEBROOT}/wp-config.php
+
+  setupWpSlave:
+     - forEach(nodes.cp):
+        if(${@i.id} != ${nodes.cp.master.id}):
+          cmd [${@i.id}]: |-
+            if [ ! -f ${SERVER_WEBROOT}/wp-config.php ]; then ln -s ${SERVER_WEBROOT}/wp-content/wp-config.php ${SERVER_WEBROOT}/wp-config.php; fi
+            if [ ! -f ${SERVER_WEBROOT}/.htaccess ]; then ln -s ${SERVER_WEBROOT}/wp-content/.htaccess_default ${SERVER_WEBROOT}/.htaccess; fi
+            wget https://raw.githubusercontent.com/jelastic-jps/wordpress-cluster/master/configs/wordpress/wp-jelastic.php -O ${SERVER_WEBROOT}/wp-jelastic.php
+            echo "define('DISABLE_WP_CRON', true);" >> ${SERVER_WEBROOT}/wp-jelastic.php
+  
   setupLSCWP:
     - cmd[${nodes.cp.master.id}]: |-
         wp plugin install litespeed-cache --path=${SERVER_WEBROOT}
         wp plugin activate litespeed-cache --path=${SERVER_WEBROOT}
-        wget ${baseUrl}/configs/wordpress/LSCWP.cfg -O ~/LSCWP.cfg
+        wget ${baseUrl}/configs/wordpress/LSCWP_localhost.cfg -O ~/LSCWP.cfg
         wp lscache-admin import_options ~/LSCWP.cfg --path=${SERVER_WEBROOT}
         wp cache flush --path=${SERVER_WEBROOT}
+        mv ${SERVER_WEBROOT}/.htaccess ${SERVER_WEBROOT}/wp-content/.htaccess_default
+        ln -s ${SERVER_WEBROOT}/wp-content/.htaccess_default ${SERVER_WEBROOT}/.htaccess
+
         
   setupCP:
     - cmd[${this.id}]: |-
         sed -i "s/root@localhost/${user.email}/g" /var/www/conf/httpd_config.xml
         sudo jem service restart
-  
-success: 'Below you will find your admin panel link, username and password.</br></br>
-    <table style=''font-size:13px; border: none;''><tr><td>Admin panel URL:</td><td
-    style=''padding-left: 10px;''><a href=''${env.protocol}://${env.domain}/wp-admin/''
-    target=''_blank''>${env.protocol}://${env.domain}/wp-admin/</a></td></tr>  <tr><td>Admin
-    name:</td><td style=''padding-left: 10px;''>admin</td></tr><tr><td>Password:</td><td
-    style=''padding-left: 10px;''>${globals.ADMIN_PASSWD}</td></tr></table></br>To add
-    custom domain name for your Wordpress installation follow the steps described
-    in our <a href=''http://docs.jelastic.com/custom-domains'' target=''_blank''>documentation</a>'
+        
+success: /text/success.md
