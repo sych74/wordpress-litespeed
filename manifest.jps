@@ -72,7 +72,7 @@ nodes:
   - nodeType: nginx
     extip: true
     count: 1
-    cloudlets: 8
+    cloudlets: 32
     nodeGroup: bl
     displayName: Load balancer
 
